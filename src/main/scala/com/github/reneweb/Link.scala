@@ -41,7 +41,6 @@ object HttpLink
   with Server[PubSub, PubSub]
   with LinkRichClient
 {
-  com.twitter.finagle.Name
   def newClient(dest: Name, label: String): ServiceFactory[PubSub, PubSub] =
     LinkClient.newClient(dest, label)
 
