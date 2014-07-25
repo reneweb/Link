@@ -26,6 +26,6 @@ clientSub(Subscribe("/test/test")) onSuccess {
 val clientPub = Link.newClient("localhost:1111").toService
 clientPub(new Publish("/test/test", Left("Some Msg")))
 
-//Close the subscribe client, which will unsubscribe the client from the topic
+//Closing the subscribe client will unsubscribe the client from the topic
 clientSub.close()
 ```
