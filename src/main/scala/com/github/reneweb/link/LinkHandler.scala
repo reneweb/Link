@@ -46,7 +46,7 @@ object LinkServerHandler {
       case unsubscribe: Unsubscribe =>
         val remainingSubs = subscriptions.filterNot(_.channel.getId.intValue() == unsubscribe.channelId)
         handleSubscription(remainingSubs)
-      case invalid => new IllegalArgumentException("invalid message \"%s\"".format(invalid))
+      case invalid => throw new IllegalArgumentException("invalid message \"%s\"".format(invalid))
     }.sync()
   }
 

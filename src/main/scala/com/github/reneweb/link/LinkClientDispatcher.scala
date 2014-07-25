@@ -25,8 +25,7 @@ class LinkClientDispatcher(trans: Transport[PubSub, PubSub])
           Future.exception(new RuntimeException(m))
         ).getOrElse(Future.exception(new RuntimeException))
       case invalid =>
-        Future.exception(
-          new IllegalArgumentException("invalid message \"%s\"".format(invalid)))
+        Future.exception(new IllegalArgumentException("invalid message \"%s\"".format(invalid)))
     }
   }
 

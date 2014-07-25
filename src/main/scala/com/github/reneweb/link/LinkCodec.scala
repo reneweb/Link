@@ -74,7 +74,7 @@ class LinkDecoder() extends FrameDecoder {
       case Some(3) =>
         bufferToTopicWithOptMessage(buffer).map(r => PubSubResponseError(r._1, r._2))
       case _ => None
-    }}.getOrElse(null)
+    }}.orNull
   }
 
   def bufferToTopicWithOptMessage(buffer: ChannelBuffer): Option[(String, Option[String])] = {
@@ -136,7 +136,7 @@ class LinkEncoder() extends OneToOneEncoder {
       case subscribe: Subscribe => topicToBuffer(1, subscribe.topic)
       case response: PubSubResponseSuccess => topicWithMessageToBuffer(2, response.topic, None, response.message.map(_.getBytes("UTF-8")))
       case response: PubSubResponseError => topicWithMessageToBuffer(3, response.topic, None, response.message.map(_.getBytes("UTF-8")))
-      case _ => ???
+      case invalid => throw new IllegalArgumentException("invalid message \"%s\"".format(invalid))
     }
   }
 
@@ -159,7 +159,7 @@ class LinkEncoder() extends OneToOneEncoder {
       val buffer = ChannelBuffers.buffer(bufferSize)
 
       buffer.writeByte(messageType)
-      contentTypeOpt.map(buffer.writeByte(_))
+      contentTypeOpt.map(buffer.writeByte)
       buffer.writeInt(topicBytes.length)
       buffer.writeInt(message.length)
       buffer.writeBytes(topicBytes)
