@@ -2,12 +2,13 @@ Link
 ====
 
 Link is a very simple PubSub protocol for the finagle system.
+
 *Note: This is still a work in progress*
 
 ##### Usage
 
 ```scala
-//Create the server... The service doesn't have to do anything, so we just return Future.never
+//Create the server... The service doesn't have to do anything, so just return Future.never
 val server = Link.serve(":1111", new Service[PubSub, PubSub] {
   override def apply(request: PubSub): Future[PubSub] = Future.never
 })
