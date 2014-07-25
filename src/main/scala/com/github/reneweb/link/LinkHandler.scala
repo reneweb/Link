@@ -1,40 +1,55 @@
 package com.github.reneweb.link
 
-import com.twitter.concurrent.Offer
-import com.twitter.util.Try
+import com.twitter.concurrent.{Offer, Broker}
+import com.twitter.util.Future
 import org.jboss.netty.channel._
 
-class LinkHandler extends SimpleChannelHandler {
 
-  protected[this] def write(
-     ctx: ChannelHandlerContext,
-     sock: PubSub,
-     ack: Option[Offer[Try[Unit]]] = None) {
+class LinkServerHandler extends SimpleChannelHandler {
+  import LinkServerHandler._
+
+  override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) = {
+    e.getMessage match {
+      case publish: Publish =>
+        subscriptionsBroker ! publish
+        e.getChannel.write(new PubSubResponseSuccess(publish.topic))
+      case subscribe: Subscribe =>
+        subscriptionsBroker ! new Subscription(e.getChannel, subscribe)
+        e.getChannel.write(new PubSubResponseSuccess(subscribe.topic))
+      case invalid =>
+        e.getChannel.write(new PubSubResponseError("", Some("invalid message \"%s\"".format(invalid))))
+    }
+
+    super.messageReceived(ctx, e)
   }
 
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
+    subscriptionsBroker ! new Unsubscribe(e.getChannel.getId)
+    super.channelClosed(ctx, e)
   }
 }
 
-class LinkServerHandler extends LinkHandler {
+object LinkServerHandler {
+  protected[LinkServerHandler] val subscriptionsBroker = new Broker[BaseMessage]
 
-  override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) = {
+  handleSubscription(Set())
 
+  private def handleSubscription(subscriptions: Set[Subscription]): Any = {
+    subscriptionsBroker.recv {
+      case subscription: Subscription => {
+        handleSubscription(subscriptions + subscription)
+      }
+      case publish: Publish => {
+        subscriptions.filter(_.subscribeMsg.topic == publish.topic).map(_.channel.write(publish))
+        handleSubscription(subscriptions)
+      }
+      case unsubscribe: Unsubscribe =>
+        val remainingSubs = subscriptions.filterNot(_.channel.getId.intValue() == unsubscribe.channelId)
+        handleSubscription(remainingSubs)
+      case invalid => new IllegalArgumentException("invalid message \"%s\"".format(invalid))
+    }.sync()
   }
 
-  override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
-
-  }
-}
-
-class LinkClientHandler extends LinkHandler {
-
-  override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) = {
-
-  }
-
-
-  override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
-
-  }
+  case class Subscription(channel: Channel, subscribeMsg: Subscribe) extends BaseMessage
+  case class Unsubscribe(channelId: Int) extends BaseMessage
 }
