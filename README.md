@@ -1,7 +1,7 @@
 Link
 ====
 
-Link is a very simple PubSub protocol for the finagle system.
+Link is a **very** simple PubSub protocol for the finagle system.
 
 *Note: This is still a work in progress*
 
