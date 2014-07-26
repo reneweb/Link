@@ -8,19 +8,17 @@ import org.jboss.netty.channel._
 class LinkServerHandler extends SimpleChannelHandler {
   import LinkServerHandler._
 
-  override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) = {
+  override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     e.getMessage match {
       case publish: Publish =>
         subscriptionsBroker ! publish
-        e.getChannel.write(new PubSubResponseSuccess(publish.topic))
+        Channels.write(ctx, e.getFuture, new PubSubResponseSuccess(publish.topic))
       case subscribe: Subscribe =>
-        subscriptionsBroker ! new Subscription(e.getChannel, subscribe)
-        e.getChannel.write(new PubSubResponseSuccess(subscribe.topic))
+        subscriptionsBroker ! new Subscription(ctx, e.getFuture, subscribe)
+        Channels.write(ctx, e.getFuture, new PubSubResponseSuccess(subscribe.topic))
       case invalid =>
         e.getChannel.write(new PubSubResponseError("", Some("invalid message \"%s\"".format(invalid))))
     }
-
-    super.messageReceived(ctx, e)
   }
 
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
@@ -40,16 +38,16 @@ object LinkServerHandler {
         handleSubscription(subscriptions + subscription)
       }
       case publish: Publish => {
-        subscriptions.filter(_.subscribeMsg.topic == publish.topic).map(_.channel.write(publish))
+        subscriptions.filter(_.subscribeMsg.topic == publish.topic).map(s => Channels.write(s.ctx, s.channelFuture, publish))
         handleSubscription(subscriptions)
       }
       case unsubscribe: Unsubscribe =>
-        val remainingSubs = subscriptions.filterNot(_.channel.getId.intValue() == unsubscribe.channelId)
+        val remainingSubs = subscriptions.filterNot(_.channelFuture.getChannel.getId.intValue() == unsubscribe.channelId)
         handleSubscription(remainingSubs)
       case invalid => throw new IllegalArgumentException("invalid message \"%s\"".format(invalid))
     }.sync()
   }
 
-  case class Subscription(channel: Channel, subscribeMsg: Subscribe) extends BaseMessage
+  case class Subscription(ctx: ChannelHandlerContext, channelFuture: ChannelFuture, subscribeMsg: Subscribe) extends BaseMessage
   case class Unsubscribe(channelId: Int) extends BaseMessage
 }

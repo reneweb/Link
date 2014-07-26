@@ -9,6 +9,7 @@ import com.twitter.util.{Await, Future, RandomSocket}
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 import org.scalatest._
+import scala.util.Random
 
 /**
  * Created by Rene on 22.07.2014.
@@ -29,7 +30,7 @@ class LinkSpec extends FlatSpec {
 
   "Server" should "unsubscribe client on closing of service" in {
     val server = Link.serve(":2346", new Service[PubSub, PubSub] {
-      override def apply(request: PubSub): Future[PubSub] = Future.never
+      override def apply(request: PubSub): Future[PubSub] = Future.value(request)
     })
 
     val subService = Link.newClient("localhost:2346").toService
@@ -47,7 +48,7 @@ class LinkSpec extends FlatSpec {
 
     //Create server
     val service = new Service[PubSub, PubSub] {
-      override def apply(request: PubSub): Future[PubSub] = Future.never
+      override def apply(request: PubSub): Future[PubSub] = Future.value(request)
     }
 
     val server = ServerBuilder()
@@ -96,6 +97,45 @@ class LinkSpec extends FlatSpec {
         val newMsg2 = Await.result(newMsgFuture2)
         newMsg should equal(testMessage2)
         newMsg2 should equal(testMessage2)
+        server.close()
+    }
+  }
+
+  "Client" should "receive binary messages" in {
+    val testBinMessage = new Array[Byte](1000)
+    Random.nextBytes(testBinMessage)
+
+    //Create server
+    val service = new Service[PubSub, PubSub] {
+      override def apply(request: PubSub): Future[PubSub] = Future.value(request)
+    }
+
+    val server = ServerBuilder()
+      .codec(LinkCodec())
+      .bindTo(new InetSocketAddress(2348))
+      .name("LinkServer")
+      .build(service)
+
+    //Create clients
+    val clientSub = Link.newClient("localhost:2348").toService
+    val subscribeResFuture = clientSub(Subscribe("/test/test"))
+    val subscribeRes = Await.result(subscribeResFuture)
+    subscribeRes shouldBe a[SubscribeResponse]
+
+    val clientPub = Link.newClient("localhost:2348").toService
+
+    subscribeRes match {
+      case subscribeResponse: SubscribeResponse =>
+        //Prepare for / send out the publish
+        val msgFuture = subscribeResponse.binaryOut.sync()
+
+        val pubResFuture = clientPub(Publish("/test/test", Right(testBinMessage)))
+        val pubRes = Await.result(pubResFuture)
+        pubRes shouldBe a [PubSubResponseSuccess]
+
+        val msg = Await.result(msgFuture)
+        msg should equal(testBinMessage)
+
         server.close()
     }
   }
