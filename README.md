@@ -8,9 +8,9 @@ Link is a **very** simple PubSub protocol for finagle.
 ##### Usage
 
 ```scala
-//Create the server... The service doesn't have to do anything, so just return Future.never
+//Create the server... The service usually doesn't have to do anything, so just return the request as a future
 val server = Link.serve(":1111", new Service[PubSub, PubSub] {
-  override def apply(request: PubSub): Future[PubSub] = Future.never
+  override def apply(request: PubSub): Future[PubSub] = Future.value(request)
 })
 
 //Create a subscribe client... The subscription will block the connection, thus the service cannot be reused to send other requests
