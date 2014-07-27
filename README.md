@@ -3,7 +3,19 @@ Link
 
 Link is a **very** simple PubSub protocol for finagle.
 
-*Note: This is still a work in progress*
+*Note: This is a work in progress*
+
+##### Dependency
+
+SBT
+
+'''
+resolvers += "com.github.reneweb" at "https://raw.githubusercontent.com/reneweb/mvn-repo/master"
+
+libraryDependencies ++= Seq(
+  "com.github.reneweb" %% "link" % "0.1.0"
+)
+'''
 
 ##### Usage
 
