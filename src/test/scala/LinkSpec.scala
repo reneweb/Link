@@ -97,8 +97,9 @@ class LinkSpec extends FlatSpec {
         val newMsg2 = Await.result(newMsgFuture2)
         newMsg should equal(testMessage2)
         newMsg2 should equal(testMessage2)
-        server.close()
     }
+
+    server.close()
   }
 
   "Client" should "receive binary messages" in {
@@ -135,8 +136,8 @@ class LinkSpec extends FlatSpec {
 
         val msg = Await.result(msgFuture)
         msg should equal(testBinMessage)
-
-        server.close()
     }
+
+    server.close()
   }
 }
