@@ -9,13 +9,13 @@ Link is a **very** simple PubSub protocol for finagle.
 
 SBT
 
-'''
+```scala
 resolvers += "com.github.reneweb" at "https://raw.githubusercontent.com/reneweb/mvn-repo/master"
 
 libraryDependencies ++= Seq(
   "com.github.reneweb" %% "link" % "0.1.0"
 )
-'''
+```
 
 ##### Usage
 
