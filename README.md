@@ -34,6 +34,8 @@ clientSub(Subscribe("/test/test")) onSuccess {
   case invalid => //Something went wrong
 }
 
+//...
+
 //Create a publish client
 val clientPub = Link.newClient("localhost:1111").toService
 clientPub(new Publish("/test/test", Left("Some Msg")))
