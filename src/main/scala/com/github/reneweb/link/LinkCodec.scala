@@ -49,15 +49,27 @@ case class LinkCodec() extends CodecFactory[PubSub, PubSub] {
 
 class LinkDecoder() extends FrameDecoder {
   override def decode(ctx: ChannelHandlerContext, channel: Channel, buffer: ChannelBuffer): AnyRef = {
-    {readFlag(buffer) match {
+
+    val messageTypeOpt = if(buffer.readableBytes() >= 1) Some(buffer.getUnsignedByte(0)) else Option.empty
+
+    val frameOpt = messageTypeOpt match {
       case Some(0) =>
-        for(
-          contentType <- readFlag(buffer);
-          topicLength <- readLengthField(buffer);
-          msgLength <- readLengthField(buffer);
-          topic <- readMsg(topicLength, buffer);
-          msg <- readMsg(msgLength, buffer)
-        ) yield (
+        for {
+          (contentType, topicLength, msgLength) <-
+            if (buffer.readableBytes() >= 10) {
+                Some(buffer.getUnsignedByte(1),
+                  buffer.getInt(2),
+                  buffer.getInt(6))
+            } else Option.empty;
+
+          (topic, msg) <-
+            if (buffer.readableBytes() >= (topicLength + msgLength + 10)) {
+                buffer.skipBytes(10)
+                Some(getFrame(buffer, topicLength),
+                  getFrame(buffer, msgLength))
+            } else Option.empty
+
+        } yield (
           if(contentType == 0) {
             Publish(topic.toString(Charset.forName("UTF-8")), Left(msg.toString(Charset.forName("UTF-8"))))
           } else {
@@ -66,61 +78,53 @@ class LinkDecoder() extends FrameDecoder {
         )
       case Some(1) =>
         for(
-          topicLength <- readLengthField(buffer);
-          topic <- readMsg(topicLength, buffer)
+          topicLength <-
+            if (buffer.readableBytes() >= 5) Some(buffer.getInt(1))
+            else Option.empty;
+
+          topic <-
+            if (buffer.readableBytes() >= (topicLength + 5)) {
+              buffer.skipBytes(5)
+              Some(getFrame(buffer, topicLength))
+            } else Option.empty
+
         ) yield (Subscribe(topic.toString(Charset.forName("UTF-8"))))
       case Some(2) =>
         bufferToTopicWithOptMessage(buffer).map(r => PubSubResponseSuccess(r._1, r._2))
       case Some(3) =>
         bufferToTopicWithOptMessage(buffer).map(r => PubSubResponseError(r._1, r._2))
       case _ => None
-    }}.orNull
+    }
+
+    frameOpt.orNull
   }
 
   def bufferToTopicWithOptMessage(buffer: ChannelBuffer): Option[(String, Option[String])] = {
-    for(
-      topicLength <- readLengthField(buffer);
-      msgLength <- readLengthField(buffer);
-      topic <- readMsg(topicLength, buffer)
-    ) yield {
-      if(msgLength == 0) (topic.toString(Charset.forName("UTF-8")), None)
-      else {
-        val topicString = topic.toString(Charset.forName("UTF-8"))
-        readMsg(msgLength, buffer).map{
-          msg => (topicString, Some(msg.toString(Charset.forName("UTF-8"))))
-        }.getOrElse(topicString, None)
-      }
+    for {
+      (topicLength, msgLength) <-
+        if (buffer.readableBytes() >= 9) {
+          Some(buffer.getInt(1),
+            buffer.getInt(5))
+        } else Option.empty;
+
+      (topic, msgOpt) <-
+        if (buffer.readableBytes() >= (topicLength + msgLength + 9)) {
+          buffer.skipBytes(9)
+          Some(getFrame(buffer, topicLength),
+            if(msgLength != 0) Some(getFrame(buffer, msgLength)) else Option.empty)
+        } else Option.empty
+
+    } yield {
+      (topic.toString(Charset.forName("UTF-8")), msgOpt.map(_.toString(Charset.forName("UTF-8"))))
     }
   }
 
-  def readFlag(buffer: ChannelBuffer): Option[Int] = {
-    if(buffer.readableBytes() < 1) {
-      buffer.resetReaderIndex()
-      None
-    } else {
-      buffer.markReaderIndex()
-      Some(buffer.readByte().toInt)
-    }
-  }
-
-  def readLengthField(buffer: ChannelBuffer): Option[Int] = {
-    if(buffer.readableBytes() < 4) {
-      buffer.resetReaderIndex()
-      None
-    } else {
-      buffer.markReaderIndex()
-      Some(buffer.readInt())
-    }
-  }
-
-  def readMsg(length: Int, buffer: ChannelBuffer): Option[ChannelBuffer] = {
-    if(buffer.readableBytes() < length) {
-      buffer.resetReaderIndex()
-      None
-    } else {
-      buffer.markReaderIndex()
-      Some(buffer.readBytes(length))
-    }
+  def getFrame(buffer: ChannelBuffer, length: Int) = {
+    val readerIndex: Int = buffer.readerIndex
+    val actualFrameLength: Int = length
+    val frame: ChannelBuffer = extractFrame(buffer, readerIndex, actualFrameLength)
+    buffer.readerIndex(readerIndex + actualFrameLength)
+    frame
   }
 }
 

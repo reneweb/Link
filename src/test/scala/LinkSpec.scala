@@ -103,7 +103,7 @@ class LinkSpec extends FlatSpec {
   }
 
   "Client" should "receive binary messages" in {
-    val testBinMessage = new Array[Byte](1000)
+    val testBinMessage = new Array[Byte](20000)
     Random.nextBytes(testBinMessage)
 
     //Create server
