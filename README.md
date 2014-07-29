@@ -13,7 +13,7 @@ SBT
 resolvers += "com.github.reneweb" at "https://raw.githubusercontent.com/reneweb/mvn-repo/master"
 
 libraryDependencies ++= Seq(
-  "com.github.reneweb" %% "link" % "0.1.0"
+  "com.github.reneweb" %% "link" % "0.1.1"
 )
 ```
 
@@ -37,6 +37,8 @@ clientSub(Subscribe("/test/test")) onSuccess {
 //Create a publish client
 val clientPub = Link.newClient("localhost:1111").toService
 clientPub(new Publish("/test/test", Left("Some Msg")))
+
+//...
 
 //Closing the subscribe client will unsubscribe the client from the topic
 clientSub.close()
