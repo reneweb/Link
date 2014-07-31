@@ -9,6 +9,7 @@ import com.twitter.util.{Await, Future, RandomSocket}
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
 import org.scalatest._
+import scala.Function._
 import scala.util.Random
 
 /**
@@ -139,5 +140,19 @@ class LinkSpec extends FlatSpec {
     }
 
     server.close()
+  }
+
+  "Client" should "subscribe and publish through rich client" in {
+    val client = Link.newRichClient("localhost:2346")
+    val sub = client.subscribe(Subscribe("/test/test"))
+    val closeSub = sub map tupled { (response, close) =>
+      response.out foreach println
+      close
+    }
+
+    client.publish(Publish("/test/test", Left("First Message")))
+    client.publish(Publish("/test/test", Left("Second Message")))
+
+    closeSub.map(_())
   }
 }
