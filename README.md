@@ -13,7 +13,7 @@ SBT
 resolvers += "com.github.reneweb" at "https://raw.githubusercontent.com/reneweb/mvn-repo/master"
 
 libraryDependencies ++= Seq(
-  "com.github.reneweb" %% "link" % "0.1.1"
+  "com.github.reneweb" %% "link" % "0.1.2"
 )
 ```
 
